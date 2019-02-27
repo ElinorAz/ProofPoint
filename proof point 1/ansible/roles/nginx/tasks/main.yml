@@ -1,0 +1,40 @@
+---
+- name: Install nginx
+  apt: name=nginx state=latest
+
+- name: start nginx
+  service:
+    name: nginx
+    state: started
+
+- block:
+
+  - name: Remove default vhost configurations
+    file: path=/etc/nginx/sites-enabled/{{item}} state=absent
+    with_items:
+      - default
+
+  - name: Set up nginx virtualhost
+    copy: src=loadbalancer.conf dest=/etc/nginx/sites-available/loadbalancer.conf
+    become: true
+
+  - name: Enable nginx virtualhost
+    file: src=/etc/nginx/sites-available/loadbalancer.conf dest=/etc/nginx/sites-enabled/loadbalancer.conf state=link
+    become: true
+
+  - name: start nginx
+    service:
+      name: nginx
+      state: restarted
+  when: loadbalancer == true
+
+- block:
+  - name: Copy index html to webservers
+    template: src=index.html.j2 dest=/usr/share/nginx/html/index.html
+    become: true
+
+  - name: start nginx
+    service:
+      name: nginx
+      state: restarted
+  when: webservers == true
